@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Ridgeline Courier — a valley flight game</title>
+<style>
+  :root {
+    --glass: rgba(8, 18, 28, 0.62);
+    --glass-bright: rgba(12, 28, 42, 0.78);
+    --line: rgba(160, 220, 255, 0.35);
+    --amber: #ffb454;
+    --teal: #4de3c2;
+    --red: #ff5d5d;
+    --ink: #eaf6ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a141d; }
+  body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--ink); }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .hidden { display: none !important; }
+
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  .panel {
+    background: var(--glass);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    backdrop-filter: blur(3px);
+    box-shadow: 0 0 18px rgba(0, 0, 0, 0.35), inset 0 0 22px rgba(90, 180, 255, 0.08);
+    padding: 8px 12px;
+  }
+  .label { font-size: 10px; letter-spacing: 0.18em; color: #9fc6e2; text-transform: uppercase; }
+  .value { font-family: "Consolas", "SF Mono", monospace; font-weight: 700; line-height: 1.05; }
+
+  #hud-left { position: absolute; left: 16px; top: 14px; display: flex; flex-direction: column; gap: 8px; }
+  #hud-left .panel { min-width: 168px; }
+  #hud-speed { font-size: 40px; color: #fff; }
+  #hud-speed small { font-size: 13px; color: var(--amber); }
+  #hud-alt { font-size: 30px; color: #fff; }
+  #hud-altMsl { font-size: 11px; color: #9fc6e2; font-family: "Consolas", monospace; }
+  #hud-vspeed { font-size: 14px; color: var(--teal); font-family: "Consolas", monospace; }
+  #hud-vspeed.sink { color: var(--red); }
+  #hud-vspeed.climb { color: var(--teal); }
+
+  #hud-top { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); text-align: center; }
+  #hud-top .panel { padding: 6px 18px 8px; }
+  #hud-heading { font-size: 22px; color: #fff; font-family: "Consolas", monospace; }
+  .compass-window { width: 240px; overflow: hidden; margin: 2px auto 0; position: relative; height: 20px;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent); }
+  .compass-window::after { content: ""; position: absolute; left: 50%; top: 0; margin-left: -5px;
+    border: 5px solid transparent; border-top: 7px solid var(--amber); }
+  #hud-compass { display: flex; height: 20px; }
+  #hud-compass .tick { flex: 0 0 36px; text-align: center; font-size: 11px; color: #bfe3ff;
+    font-family: "Consolas", monospace; border-left: 1px solid rgba(190, 227, 255, 0.4); padding-top: 2px; }
+  #hud-compass .tick.major { color: var(--amber); font-weight: 700; }
+
+  #hud-right { position: absolute; right: 16px; top: 14px; display: flex; flex-direction: column; gap: 8px; width: 200px; }
+  #hud-right .panel { padding: 8px 12px; }
+  #hud-score { font-size: 34px; color: var(--amber); }
+  #hud-score.pop { animation: pop 0.35s ease; }
+  @keyframes pop { 40% { transform: scale(1.25); } }
+  .meter { height: 8px; background: rgba(255, 255, 255, 0.14); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+  .meter > div { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #2f9e6e, #4de3c2); transition: width 0.2s; }
+  #hud-throttleBar { background: linear-gradient(90deg, #e07b39, #ffb454); }
+  #hud-fuelBar.low { background: linear-gradient(90deg, #c22, #ff5d5d); }
+  .row { display: flex; justify-content: space-between; align-items: baseline; }
+  .row .value { font-size: 18px; }
+  #hud-timer { font-size: 20px; color: #fff; font-family: "Consolas", monospace; }
+
+  #hud-bottom { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); text-align: center; }
+  #hud-phase { font-size: 15px; letter-spacing: 0.12em; color: var(--amber); font-weight: 700; }
+  #hud-objective { font-size: 12px; color: #cfe8f8; margin-top: 2px; }
+  #hud-nextgate { font-size: 13px; color: var(--teal); font-family: "Consolas", monospace; margin-top: 3px; }
+
+  #hud-horizon-wrap { position: absolute; left: 16px; bottom: 14px; }
+  #hud-horizon { display: block; border-radius: 50%; background: rgba(8, 18, 28, 0.55);
+    border: 1px solid var(--line); box-shadow: 0 0 18px rgba(0,0,0,0.4); }
+
+  #hud-chips { position: absolute; right: 16px; bottom: 14px; display: flex; gap: 8px; }
+  .chip { padding: 6px 10px; border-radius: 8px; background: var(--glass); border: 1px solid var(--line);
+    font-size: 11px; letter-spacing: 0.1em; color: #8fb4cc; }
+  .chip.on { color: #06281f; background: var(--teal); border-color: var(--teal); font-weight: 700; }
+
+  #hud-warning { position: absolute; left: 50%; top: 96px; transform: translateX(-50%);
+    font-size: 22px; font-weight: 800; letter-spacing: 0.08em; color: #fff;
+    background: rgba(190, 30, 30, 0.85); border: 1px solid #ff8a8a; border-radius: 8px;
+    padding: 6px 18px; opacity: 0; transition: opacity 0.15s; text-shadow: 0 1px 2px rgba(0,0,0,0.6); }
+  #hud-warning.show { opacity: 1; animation: blink 0.7s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0.45; } }
+
+  #hud-keys { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: none; }
+  #btn-mute { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); pointer-events: auto; }
+
+  /* ---------- Screens ---------- */
+  .screen { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 50% 38%, rgba(6, 20, 32, 0.25), rgba(4, 12, 20, 0.78) 78%); }
+  .card { max-width: 640px; width: calc(100% - 40px); text-align: center; padding: 34px 40px 30px;
+    background: var(--glass-bright); border: 1px solid var(--line); border-radius: 16px;
+    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55), inset 0 0 40px rgba(90, 180, 255, 0.07); }
+  .kicker { font-size: 12px; letter-spacing: 0.34em; color: var(--teal); text-transform: uppercase; }
+  h1 { font-size: 52px; letter-spacing: 0.04em; margin: 8px 0 4px; color: #fff;
+    text-shadow: 0 0 26px rgba(77, 227, 194, 0.45); }
+  h1 .accent { color: var(--amber); }
+  .sub { font-size: 15px; color: #cfe8f8; margin-bottom: 18px; }
+  .brief { text-align: left; font-size: 14px; line-height: 1.65; color: #dceefb;
+    background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(160, 220, 255, 0.18);
+    border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; }
+  .brief b { color: var(--amber); }
+  .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 22px; text-align: left;
+    font-size: 13px; color: #b9d9ee; margin-bottom: 22px; }
+  .controls div b { color: #fff; font-family: "Consolas", monospace; }
+  .btn { pointer-events: auto; cursor: pointer; border: none; border-radius: 10px;
+    font-size: 17px; font-weight: 800; letter-spacing: 0.06em; padding: 13px 34px; color: #08231c;
+    background: linear-gradient(180deg, #5ff0cd, #2fbf9a); box-shadow: 0 6px 22px rgba(47, 191, 154, 0.45); }
+  .btn:hover { filter: brightness(1.1); }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); box-shadow: none; font-weight: 600; }
+  .btn-row { display: flex; gap: 12px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+  .tiny { font-size: 11px; color: #7fa5bd; margin-top: 16px; line-height: 1.5; }
+  h2 { font-size: 40px; color: #fff; margin: 6px 0; }
+  h2.bad { color: var(--red); text-shadow: 0 0 24px rgba(255, 93, 93, 0.5); }
+  h2.good { color: var(--teal); text-shadow: 0 0 24px rgba(77, 227, 194, 0.5); }
+  #crash-reason { font-size: 16px; color: #ffb0b0; margin: 4px 0 14px; letter-spacing: 0.06em; }
+  #crash-stats { font-size: 15px; color: #dceefb; }
+  .stat-row { display: flex; justify-content: space-between; font-size: 15px; padding: 7px 4px;
+    border-bottom: 1px solid rgba(160, 220, 255, 0.14); color: #cfe8f8; }
+  .stat-row b { color: #fff; font-family: "Consolas", monospace; }
+  .stat-total { display: flex; justify-content: space-between; font-size: 20px; padding: 12px 4px 2px; color: var(--amber); }
+  .stat-total b { font-family: "Consolas", monospace; }
+  #btn-mute { pointer-events: auto; cursor: pointer; background: var(--glass); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; font-size: 13px; }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<!-- ======================= HUD ======================= -->
+<div id="hud" class="hidden">
+  <div id="hud-left">
+    <div class="panel">
+      <div class="label">Airspeed</div>
+      <div class="value"><span id="hud-speed">0</span> <small>KT</small></div>
+      <div id="hud-vspeed">+0 FPM</div>
+    </div>
+    <div class="panel">
+      <div class="label">Altitude AGL</div>
+      <div class="value"><span id="hud-alt">0</span> <small>FT</small></div>
+      <div id="hud-altMsl">MSL 0 FT</div>
+    </div>
+  </div>
+
+  <div id="hud-top">
+    <div class="panel">
+      <div id="hud-heading">000° N</div>
+      <div class="compass-window"><div id="hud-compass"></div></div>
+    </div>
+  </div>
+
+  <div id="hud-right">
+    <div class="panel">
+      <div class="row"><span class="label">Score</span><span class="label">Time <span id="hud-timer" class="value">0:00</span></span></div>
+      <div class="value" id="hud-score">0</div>
+      <div class="row" style="margin-top:4px"><span class="label">Gates</span><span class="value" id="hud-rings">0/8</span></div>
+    </div>
+    <div class="panel">
+      <div class="row"><span class="label">Throttle</span><span class="value" id="hud-throttle">0%</span></div>
+      <div class="meter"><div id="hud-throttleBar" style="width:0%"></div></div>
+      <div class="row" style="margin-top:8px"><span class="label">Fuel</span><span class="value" id="hud-fuel">100%</span></div>
+      <div class="meter"><div id="hud-fuelBar" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <div id="hud-bottom">
+    <div id="hud-phase">LEG 1 — RING RUN</div>
+    <div id="hud-objective"></div>
+    <div id="hud-nextgate"></div>
+  </div>
+
+  <div id="hud-horizon-wrap"><canvas id="hud-horizon" width="140" height="140"></canvas></div>
+
+  <div id="hud-chips">
+    <div class="chip" id="hud-flaps">FLAPS</div>
+    <div class="chip" id="hud-brake">BRAKE</div>
+  </div>
+
+  <div id="hud-warning"></div>
+  <button id="btn-mute">🔊 Sound on</button>
+</div>
+
+<!-- ======================= START ======================= -->
+<div id="screen-menu" class="screen">
+  <div class="card">
+    <div class="kicker">A valley flight game</div>
+    <h1>RIDGELINE <span class="accent">COURIER</span></h1>
+    <div class="sub">One small plane, one long valley, eight gates, one strip of tarmac at the far end.</div>
+    <div class="brief">
+      You fly the mail run up <b>Foxglove Valley</b>. Thread all <b>8 orange gates</b> in order —
+      each one tops up your fuel — then put her down on the <b>north field</b>. Watch the fuel
+      gauge: full throttle drinks fast. Too slow and the wing quits; too low and the hillside
+      wins. A gentle touchdown pays a landing bonus.
+    </div>
+    <div class="controls">
+      <div><b>↑ / W</b> pitch up &nbsp;·&nbsp; <b>↓ / S</b> pitch down</div>
+      <div><b>← → / A D</b> bank &amp; turn</div>
+      <div><b>Shift / T</b> throttle up &nbsp;·&nbsp; <b>Ctrl / G</b> throttle down</div>
+      <div><b>Mouse</b> steer toward the pointer</div>
+      <div><b>F</b> flaps (slow flight) &nbsp;·&nbsp; <b>B / Space</b> brake</div>
+      <div><b>P</b> pause &nbsp;·&nbsp; <b>M</b> mute &nbsp;·&nbsp; <b>R</b> restart</div>
+    </div>
+    <button class="btn" id="btn-fly">✈ &nbsp;FLY THE MAIL RUN</button>
+    <div class="tiny">Best played in desktop Chrome · sound starts on your first click · no downloads, no network — the whole valley is built in your browser.</div>
+  </div>
+</div>
+
+<!-- ======================= CRASH ======================= -->
+<div id="screen-crashed" class="screen hidden">
+  <div class="card">
+    <div class="kicker">Sortie failed</div>
+    <h2 class="bad">DOWN IN THE VALLEY</h2>
+    <div id="crash-reason">TERRAIN IMPACT</div>
+    <div id="crash-stats"></div>
+    <div class="btn-row">
+      <button class="btn" id="btn-retry">↻ &nbsp;FLY AGAIN</button>
+      <button class="btn ghost" id="btn-menu">Back to menu</button>
+    </div>
+    <div class="tiny">Tip: keep 70+ kt on final, flaps out, and aim for the white dashes — the strip is short.</div>
+  </div>
+</div>
+
+<!-- ======================= LANDED ======================= -->
+<div id="screen-landed" class="screen hidden">
+  <div class="card">
+    <div class="kicker">Mail delivered</div>
+    <h2 class="good">DELIVERY COMPLETE</h2>
+    <div class="sub">The valley run is done — the parcels are on the north field.</div>
+    <div id="landed-stats"></div>
+    <div class="btn-row">
+      <button class="btn" id="btn-again">↻ &nbsp;FLY IT AGAIN</button>
+    </div>
+    <div class="tiny">Beat the par time of 2:30 for the full time bonus. Full throttle the whole way drinks the tanks dry — cruise at 70% and let the gates refuel you.</div>
+  </div>
+</div>
+
+<!-- ======================= PAUSED ======================= -->
+<div id="screen-paused" class="screen hidden">
+  <div class="card">
+    <div class="kicker">Holding pattern</div>
+    <h2>PAUSED</h2>
+    <div class="sub">The valley waits. The fuel gauge does not.</div>
+    <div class="btn-row">
+      <button class="btn" id="btn-resume">▶ &nbsp;RESUME</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
