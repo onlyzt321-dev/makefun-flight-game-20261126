@@ -101,10 +101,12 @@ class Game {
   applyShotHook() {
     if (SHOT === 'fly') {
       this.startSortie(true);
-      this.flight.position.set(-8, 66, 300);
-      this.flight.heading = 0.12;
+      // Staged a little farther out and aimed at gate 2, so the plane
+      // and the next gate both sit fully in frame at capture time.
+      this.flight.position.set(0, 74, 370);
+      this.flight.heading = -0.4;
       this.flight.pitch = -0.02;
-      this.flight.roll = 0.06;
+      this.flight.roll = -0.12;
       this.flight.speed = 62;
       this.flight.throttle = 0.72;
       this.flight.onGround = false;
@@ -176,6 +178,7 @@ class Game {
     this.sound.start();
     this.sound.click();
     this.flight.reset();
+    this.input.reset();
     this.rings.reset();
     this.mission.start();
     this.state = STATES.FLYING;
@@ -206,6 +209,8 @@ class Game {
     document.getElementById('btn-mute').textContent = this.sound.muted
       ? '🔇 Sound off'
       : '🔊 Sound on';
+    const touchMute = document.getElementById('touch-mute');
+    if (touchMute) touchMute.textContent = this.sound.muted ? '🔇' : '🔊';
   }
 
   frame() {
