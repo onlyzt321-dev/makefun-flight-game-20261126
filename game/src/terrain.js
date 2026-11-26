@@ -46,7 +46,7 @@ function groundColor(height, slope, out) {
     out.setRGB(0.76, 0.7, 0.52); // sandy riverbank
   } else if (slope > 0.55) {
     out.setRGB(0.42, 0.38, 0.36); // bare rock on steep faces
-  } else if (height > 72) {
+  } else if (height > 66) {
     out.setRGB(0.93, 0.94, 0.96); // snow caps
   } else if (height > 46) {
     out.setRGB(0.36, 0.42, 0.3); // high scrub
@@ -243,22 +243,22 @@ export function buildTerrain(scene) {
   });
   const clouds = new THREE.Group();
   clouds.name = 'clouds';
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 24; i++) {
     const cloud = new THREE.Group();
-    const puffs = 3 + Math.floor(rand() * 3);
+    const puffs = 3 + Math.floor(rand() * 4);
     for (let k = 0; k < puffs; k++) {
-      const r = 9 + rand() * 14;
+      const r = 9 + rand() * 18;
       const puff = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), cloudMat);
-      puff.position.set((rand() - 0.5) * 34, (rand() - 0.5) * 5, (rand() - 0.5) * 18);
+      puff.position.set((rand() - 0.5) * 40, (rand() - 0.5) * 6, (rand() - 0.5) * 22);
       puff.scale.y = 0.45;
       cloud.add(puff);
     }
     cloud.position.set(
       (rand() * 2 - 1) * 520,
-      150 + rand() * 90,
+      140 + rand() * 130,
       (rand() * 2 - 1) * 520,
     );
-    cloud.userData.drift = 1.5 + rand() * 2.5;
+    cloud.userData.drift = 0.8 + rand() * 3.8;
     clouds.add(cloud);
   }
   group.add(clouds);
@@ -266,7 +266,7 @@ export function buildTerrain(scene) {
 
   // --- Sky, sun, fog -------------------------------------------------
   scene.background = new THREE.Color(0x9ec8e8);
-  scene.fog = new THREE.Fog(0xa8c6dd, 260, 1500);
+  scene.fog = new THREE.Fog(0xa8c6dd, 300, 1350);
   const hemi = new THREE.HemisphereLight(0xbfd9ee, 0x5d6b4a, 0.9);
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff2d8, 2.1);
@@ -280,6 +280,58 @@ export function buildTerrain(scene) {
   sun.shadow.camera.far = 1200;
   scene.add(sun);
   scene.add(sun.target);
+
+  // Sun disc with a soft glow: two camera-facing sprites far along the
+  // light's direction, so the sun sits where the shadows say it should.
+  // (Canvas textures, drawn at runtime — no network, no files.)
+  const sunDir = new THREE.Vector3(320, 420, 180).normalize();
+  const sunPos = sunDir.clone().multiplyScalar(1150);
+  const makeGlowTexture = () => {
+    const c = document.createElement('canvas');
+    c.width = 128;
+    c.height = 128;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(255, 240, 190, 0.9)');
+    g.addColorStop(0.4, 'rgba(255, 232, 160, 0.45)');
+    g.addColorStop(1, 'rgba(255, 232, 160, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(c);
+  };
+  const makeDiscTexture = () => {
+    const c = document.createElement('canvas');
+    c.width = 128;
+    c.height = 128;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff8dc';
+    ctx.beginPath();
+    ctx.arc(64, 64, 62, 0, Math.PI * 2);
+    ctx.fill();
+    return new THREE.CanvasTexture(c);
+  };
+  const sunGlow = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: makeGlowTexture(),
+      transparent: true,
+      depthWrite: false,
+      fog: false,
+    }),
+  );
+  sunGlow.position.copy(sunPos);
+  sunGlow.scale.set(360, 360, 1);
+  scene.add(sunGlow);
+  const sunDisc = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: makeDiscTexture(),
+      transparent: true,
+      depthWrite: false,
+      fog: false,
+    }),
+  );
+  sunDisc.position.copy(sunPos);
+  sunDisc.scale.set(64, 64, 1);
+  scene.add(sunDisc);
 
   scene.add(group);
   return group;

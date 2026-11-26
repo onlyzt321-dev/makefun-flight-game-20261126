@@ -94,6 +94,54 @@
   #hud-keys { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: none; }
   #btn-mute { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); pointer-events: auto; }
 
+  /* ---------- Touch controls (only on touch-capable devices) ---------- */
+  #touch-ui { display: none; position: fixed; inset: 0; z-index: 6; pointer-events: none; }
+  body.touch #touch-ui { display: block; }
+  #touch-ui .tctl { position: absolute; pointer-events: auto; touch-action: none;
+    user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  #touch-stick { left: 22px; bottom: 22px; width: 150px; height: 150px; border-radius: 50%;
+    background: rgba(8, 18, 28, 0.42); border: 1px solid var(--line); box-shadow: 0 0 18px rgba(0, 0, 0, 0.35); }
+  #touch-knob { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px;
+    border-radius: 50%; background: rgba(77, 227, 194, 0.35); border: 2px solid rgba(77, 227, 194, 0.85); }
+  #touch-throttle { right: 14px; top: 50%; transform: translateY(-50%); width: 56px; height: 210px;
+    border-radius: 12px; background: rgba(8, 18, 28, 0.42); border: 1px solid var(--line);
+    box-shadow: 0 0 18px rgba(0, 0, 0, 0.35); }
+  #touch-throttle .track { position: absolute; left: 50%; top: 12px; bottom: 12px; width: 8px;
+    margin-left: -4px; border-radius: 4px; background: rgba(255, 255, 255, 0.16); overflow: hidden; }
+  #touch-throttle .fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
+    background: linear-gradient(180deg, #ffb454, #e07b39); }
+  #touch-throttle .thumb { position: absolute; left: 50%; bottom: 0%; width: 42px; height: 16px;
+    margin-left: -21px; transform: translateY(50%); border-radius: 8px; background: #ffb454;
+    border: 1px solid rgba(255, 255, 255, 0.4); }
+  #touch-ui .tbtn { font-family: inherit; cursor: pointer; background: var(--glass);
+    border: 1px solid var(--line); color: var(--ink); border-radius: 12px; font-size: 13px;
+    font-weight: 800; letter-spacing: 0.08em; }
+  #touch-flaps { right: 178px; bottom: 22px; width: 76px; height: 60px; }
+  #touch-brake { right: 88px; bottom: 22px; width: 76px; height: 60px; }
+  #touch-flaps.on, #touch-brake.on { background: var(--teal); color: #06281f; border-color: var(--teal); }
+  #touch-mute { left: calc(50% - 204px); top: 16px; width: 44px; height: 34px; border-radius: 8px; font-size: 15px; }
+  #touch-pause { left: calc(50% + 160px); top: 16px; width: 44px; height: 34px; border-radius: 8px; font-size: 14px; }
+  body.touch #btn-mute, body.touch #hud-chips, body.touch #hud-horizon-wrap { display: none; }
+  @media (max-height: 500px) {
+    #touch-stick { width: 120px; height: 120px; }
+    #touch-knob { width: 52px; height: 52px; margin: -26px 0 0 -26px; }
+    #touch-throttle { height: 150px; }
+  }
+  @media (max-width: 560px) {
+    #touch-mute, #touch-pause { display: none; }
+  }
+
+  /* Menu hints for touch players (the keyboard grid hides instead). */
+  #controls-touch { display: none; font-size: 14px; line-height: 1.7; color: #dceefb;
+    background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(160, 220, 255, 0.18);
+    border-radius: 10px; padding: 14px 18px; margin-bottom: 22px; text-align: left; }
+  #controls-touch b { color: var(--amber); }
+  body.touch #controls-touch { display: block; }
+  body.touch .controls { display: none; }
+  .tiny-touch { display: none; }
+  body.touch .tiny-touch { display: block; }
+  body.touch .tiny-desktop { display: none; }
+
   /* ---------- Screens ---------- */
   .screen { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
     background: radial-gradient(ellipse at 50% 38%, rgba(6, 20, 32, 0.25), rgba(4, 12, 20, 0.78) 78%); }
@@ -187,6 +235,16 @@
 
   <div id="hud-warning"></div>
   <button id="btn-mute">🔊 Sound on</button>
+
+  <!-- Touch controls: shown only when the device has touch (see input.js). -->
+  <div id="touch-ui">
+    <div id="touch-stick" class="tctl"><div id="touch-knob"></div></div>
+    <div id="touch-throttle" class="tctl"><div class="track"><div class="fill"></div></div><div class="thumb"></div></div>
+    <button id="touch-flaps" class="tctl tbtn">FLAPS</button>
+    <button id="touch-brake" class="tctl tbtn">BRAKE</button>
+    <button id="touch-mute" class="tctl tbtn">🔊</button>
+    <button id="touch-pause" class="tctl tbtn">⏸</button>
+  </div>
 </div>
 
 <!-- ======================= START ======================= -->
@@ -209,8 +267,15 @@
       <div><b>F</b> flaps (slow flight) &nbsp;·&nbsp; <b>B / Space</b> brake</div>
       <div><b>P</b> pause &nbsp;·&nbsp; <b>M</b> mute &nbsp;·&nbsp; <b>R</b> restart</div>
     </div>
+    <div id="controls-touch">
+      <div><b>Left stick</b> — drag to pitch &amp; bank (push up to climb)</div>
+      <div><b>Right slider</b> — drag up for more throttle</div>
+      <div><b>FLAPS</b> tap to toggle &nbsp;·&nbsp; <b>BRAKE</b> hold to brake</div>
+      <div><b>⏸</b> pause &nbsp;·&nbsp; <b>🔊</b> mute</div>
+    </div>
     <button class="btn" id="btn-fly">✈ &nbsp;FLY THE MAIL RUN</button>
-    <div class="tiny">Best played in desktop Chrome · sound starts on your first click · no downloads, no network — the whole valley is built in your browser.</div>
+    <div class="tiny tiny-desktop">Best played in desktop Chrome · sound starts on your first click · no downloads, no network — the whole valley is built in your browser.</div>
+    <div class="tiny tiny-touch">Touch ready — left stick flies, right slider is throttle · sound starts on your first tap · no downloads, no network.</div>
   </div>
 </div>
 
